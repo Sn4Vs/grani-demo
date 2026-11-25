@@ -66,6 +66,8 @@ function playIntro() {
   if (reduced.matches || location.hash || scrollY > 10) return;
   const intro = $('.intro'), metal = $('.metal'), die = $('.die'), travel = $('.travel');
   const glyphs = $$('.glyph'), laser = $('.laser'), sparkGroup = $('.sparks');
+  const light = $('.front-light'), shaft = $('.shaft',light), aura = $('.aura',light);
+  const ray = $('.ray-core',light), impact = $('.focus-light',light), gradient = $('#shaft',light);
   const pageParts = $$('header, main, footer');
   const clamp = n => Math.min(1,Math.max(0,n));
   const ease = t => t*t*(3-2*t);
@@ -82,7 +84,7 @@ function playIntro() {
     path.style.strokeDashoffset = length;
     return {path,seam,length,start};
   });
-  for (let i=0; i<8; i++) sparkGroup.append(document.createElementNS('http://www.w3.org/2000/svg','path'));
+  for (let i=0; i<14; i++) sparkGroup.append(document.createElementNS('http://www.w3.org/2000/svg','path'));
   const sparks = [...sparkGroup.children];
   let frame, fallback, done = false;
   function finish() {
@@ -116,14 +118,27 @@ function playIntro() {
       seam.style.opacity = traced > 0 ? 1 : 0;
       path.style.opacity = traced===0 ? 0 : Math.max(.08,1-Math.max(0,distance-start-length)/20);
     }
-    laser.style.opacity = time>100 && time<2180 ? 1 : 0;
+    light.style.opacity = laser.style.opacity = time>100 && time<2180 ? 1 : 0;
     const route = routes.find(r => r.start+r.length>=distance) || routes.at(-1);
     const tip = route.path.getPointAtLength(distance-route.start);
     laser.setAttribute('transform','translate('+tip.x+' '+tip.y+')');
-    $('.beam', laser).setAttribute('d','M0 0 l-5 -13');
+    const hit = tip.matrixTransform(route.path.getScreenCTM());
+    // The source projects beyond the near screen edge. The beam narrows at the metal.
+    const ox = innerWidth*.89 + hit.x*.10, oy = innerHeight*1.12;
+    const length = Math.hypot(hit.x-ox,hit.y-oy);
+    const nx = (oy-hit.y)/length, ny = (hit.x-ox)/length;
+    function cone(width) {
+      return 'M'+(ox+nx*width)+' '+(oy+ny*width)+' L'+hit.x+' '+hit.y+' L'+(ox-nx*width)+' '+(oy-ny*width)+' Z';
+    }
+    gradient.setAttribute('x1',ox);gradient.setAttribute('y1',oy);
+    gradient.setAttribute('x2',hit.x);gradient.setAttribute('y2',hit.y);
+    aura.setAttribute('d',cone(24));shaft.setAttribute('d',cone(7));
+    ray.setAttribute('d',cone(2.1));
+    impact.setAttribute('transform','translate('+hit.x+' '+hit.y+') scale('+(1+.09*Math.sin(time*.023))+')');
     sparks.forEach((spark,i) => {
       const age = (time/160 + i*.371)%1, angle = i*2.4+time*.0005;
-      const x = Math.cos(angle)*age*5, y = Math.sin(angle)*age*4+age*age;
+      const speed=4+i%5;
+      const x = Math.cos(angle)*age*speed, y = Math.sin(angle)*age*speed+age*age*2;
       spark.setAttribute('d','M'+x+' '+y+' l'+x*.28+' '+y*.28);
       spark.style.opacity = 1-age;
     });
